@@ -353,21 +353,21 @@ if [[ -n ${_arg_label_overlay} ]]; then
   # Labelled layers
   echo """
   create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_t.rgb \
-      -width 1920 -autocols ${_arg_transverse_slices} -autocol_planes t \
+      -width 1920 -height 360 -autocols ${_arg_transverse_slices} -autocol_planes t \
       -bounding_volume ${tmpdir}/bounding.mnc \
       -background orange \
       -row ${_arg_input} color:${_arg_colour_map} \
       volume_overlay:${_arg_label_overlay}:${_arg_label_overlay_opacity}
 
   create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_s.rgb \
-      -width 1920 -autocols ${_arg_sagittal_slices} -autocol_planes s \
+      -width 1920 -height 360 -autocols ${_arg_sagittal_slices} -autocol_planes s \
       -bounding_volume ${tmpdir}/bounding.mnc \
       -background orange \
       -row ${_arg_input} color:${_arg_colour_map} \
       volume_overlay:${_arg_label_overlay}:${_arg_label_overlay_opacity}
 
   create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_c.rgb \
-      -width 1920 -autocols ${_arg_coronal_slices} -autocol_planes c \
+      -width 1920 -height 360 -autocols ${_arg_coronal_slices} -autocol_planes c \
       -bounding_volume ${tmpdir}/bounding.mnc \
       -background orange \
       -row ${_arg_input} color:${_arg_colour_map} \
