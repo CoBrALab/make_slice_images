@@ -327,13 +327,18 @@ tmpdir=$(mktemp -d)
 # Convert input NIFTI files if provided
 
 if [[ ${_arg_input} = *nii || ${_arg_input} = *nii.gz ]]; then
-	nii2mnc ${_arg_input} ${tmpdir}/input.mnc
-	_arg_input=${tmpdir}/input.mnc
+  nii2mnc ${_arg_input} ${tmpdir}/input.mnc
+  _arg_input=${tmpdir}/input.mnc
 fi
 
 if [[ ${_arg_label_overlay} = *nii || ${_arg_label_overlay} = *nii.gz ]]; then
-	nii2mnc ${_arg_label_overlay} ${tmpdir}/label.mnc
-	_arg_label=${tmpdir}/label.mnc
+  nii2mnc ${_arg_label_overlay} ${tmpdir}/label.mnc
+  _arg_label=${tmpdir}/label.mnc
+fi
+
+if [[ ${_arg_second_row} = *nii || ${_arg_second_row} = *nii.gz ]]; then
+  nii2mnc ${_arg_second_row} ${tmpdir}/secondrow.mnc
+  _arg_second_row=${tmpdir}/secondrow.mnc
 fi
 
 if [[ -z ${_arg_crop_file} ]]; then
