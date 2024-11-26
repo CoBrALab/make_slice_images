@@ -6,12 +6,12 @@
 
 # ARG_POSITIONAL_SINGLE([output],[Output JPG Image])
 
-# ARG_OPTIONAL_SINGLE([label-overlay],[],[Generate second row with label overlay file],[])
+# ARG_OPTIONAL_REPEATED([label-overlay],[],[Labels to overlay on each image row, repeat for additional rows],[])
 # ARG_OPTIONAL_SINGLE([label-overlay-opacity],[],[Label overlay opacity],[0.3])
 
-# ARG_OPTIONAL_SINGLE([second-row],[],[Generate second row from a different file, conflicts with label],[])
+# ARG_OPTIONAL_REPEATED([additional-row],[],[Generate additional image row from different files, repeat for more rows],[])
 
-# ARG_OPTIONAL_SINGLE([crop-file],[],[Use bounding box of file for slicing bounds],[])
+# ARG_OPTIONAL_SINGLE([crop-file],[],[Use bounding box of file for all slicing bounds],[])
 
 # ARG_OPTIONAL_SINGLE([transverse-slices],[],[Number of slices to generate for transverse direction],[10])
 # ARG_OPTIONAL_SINGLE([coronal-slices],[],[Number of slices to generate for coronal direction],[10])
@@ -47,9 +47,9 @@ begins_with_short_option()
 # THE DEFAULTS INITIALIZATION - POSITIONALS
 _positionals=()
 # THE DEFAULTS INITIALIZATION - OPTIONALS
-_arg_label_overlay=
+_arg_label_overlay=()
 _arg_label_overlay_opacity="0.3"
-_arg_second_row=
+_arg_additional_row=()
 _arg_crop_file=
 _arg_transverse_slices="10"
 _arg_coronal_slices="10"
@@ -61,14 +61,14 @@ _arg_debug="off"
 print_help()
 {
   printf '%s\n' "Tool for generating 2D JPEG images slicing through 3D data for Quality Control, with overlay support"
-  printf 'Usage: %s [-h|--help] [--label-overlay <arg>] [--label-overlay-opacity <arg>] [--second-row <arg>] [--crop-file <arg>] [--transverse-slices <arg>] [--coronal-slices <arg>] [--sagittal-slices <arg>] [--colour-map <arg>] [-d|--(no-)debug] <input> <output>\n' "$0"
+  printf 'Usage: %s [-h|--help] [--label-overlay <arg>] [--label-overlay-opacity <arg>] [--additional-row <arg>] [--crop-file <arg>] [--transverse-slices <arg>] [--coronal-slices <arg>] [--sagittal-slices <arg>] [--colour-map <arg>] [-d|--(no-)debug] <input> <output>\n' "$0"
   printf '\t%s\n' "<input>: Input file, MINC or NIFTI"
   printf '\t%s\n' "<output>: Output JPG Image"
   printf '\t%s\n' "-h, --help: Prints help"
-  printf '\t%s\n' "--label-overlay: Generate second row with label overlay file (no default)"
+  printf '\t%s\n' "--label-overlay: Labels to overlay on each image row, repeat for additional rows (empty by default)"
   printf '\t%s\n' "--label-overlay-opacity: Label overlay opacity (default: '0.3')"
-  printf '\t%s\n' "--second-row: Generate second row from a different file, conflicts with label (no default)"
-  printf '\t%s\n' "--crop-file: Use bounding box of file for slicing bounds (no default)"
+  printf '\t%s\n' "--additional-row: Generate additional image row from different files, repeat for more rows (empty by default)"
+  printf '\t%s\n' "--crop-file: Use bounding box of file for all slicing bounds (no default)"
   printf '\t%s\n' "--transverse-slices: Number of slices to generate for transverse direction (default: '10')"
   printf '\t%s\n' "--coronal-slices: Number of slices to generate for coronal direction (default: '10')"
   printf '\t%s\n' "--sagittal-slices: Number of slices to generate for sagittal direction (default: '10')"
@@ -94,11 +94,11 @@ parse_commandline()
         ;;
       --label-overlay)
         test $# -lt 2 && die "Missing value for the optional argument '$_key'." 1
-        _arg_label_overlay="$2"
+        _arg_label_overlay+=("$2")
         shift
         ;;
       --label-overlay=*)
-        _arg_label_overlay="${_key##--label-overlay=}"
+        _arg_label_overlay+=("${_key##--label-overlay=}")
         ;;
       --label-overlay-opacity)
         test $# -lt 2 && die "Missing value for the optional argument '$_key'." 1
@@ -108,13 +108,13 @@ parse_commandline()
       --label-overlay-opacity=*)
         _arg_label_overlay_opacity="${_key##--label-overlay-opacity=}"
         ;;
-      --second-row)
+      --additional-row)
         test $# -lt 2 && die "Missing value for the optional argument '$_key'." 1
-        _arg_second_row="$2"
+        _arg_additional_row+=("$2")
         shift
         ;;
-      --second-row=*)
-        _arg_second_row="${_key##--second-row=}"
+      --additional-row=*)
+        _arg_additional_row+=("${_key##--additional-row=}")
         ;;
       --crop-file)
         test $# -lt 2 && die "Missing value for the optional argument '$_key'." 1
@@ -318,117 +318,104 @@ failure_handler() {
 }
 trap 'failure_handler "${BASH_LINENO[*]}" "$LINENO" "${FUNCNAME[*]:-script}" "$?" "$BASH_COMMAND"' ERR
 
-if [[ -n ${_arg_label_overlay} && -n ${_arg_second_row} ]]; then
-  fatal "Cannot combine label and second row settings"
-fi
-
 tmpdir=$(mktemp -d)
 
 # Convert input NIFTI files if provided
 
 if [[ ${_arg_input} = *nii || ${_arg_input} = *nii.gz ]]; then
-  nii2mnc ${_arg_input} ${tmpdir}/input.mnc
+  nii2mnc -quiet ${_arg_input} ${tmpdir}/input.mnc
   _arg_input=${tmpdir}/input.mnc
 fi
 
-if [[ ${_arg_label_overlay} = *nii || ${_arg_label_overlay} = *nii.gz ]]; then
-  nii2mnc ${_arg_label_overlay} ${tmpdir}/label.mnc
-  _arg_label=${tmpdir}/label.mnc
-fi
+i=0
+for item in "${_arg_label_overlay[@]}"; do
+  if [[ ${item} = *nii || ${item} = *nii.gz ]]; then
+    nii2mnc -quiet ${item} ${tmpdir}/$(basename ${item}).mnc
+    _arg_label_overlay[${i}]=${tmpdir}/$(basename ${item}).mnc
+  fi
+  ((i++)) || true
+done
 
-if [[ ${_arg_second_row} = *nii || ${_arg_second_row} = *nii.gz ]]; then
-  nii2mnc ${_arg_second_row} ${tmpdir}/secondrow.mnc
-  _arg_second_row=${tmpdir}/secondrow.mnc
-fi
+i=0
+for item in "${_arg_additional_row[@]}"; do
+  if [[ ${item} = *nii || ${item} = *nii.gz ]]; then
+    nii2mnc -quiet ${item} ${tmpdir}/$(basename ${item}).mnc
+    _arg_additional_row[${i}]=${tmpdir}/$(basename ${item}).mnc
+  fi
+  ((i++)) || true
+done
 
 if [[ -z ${_arg_crop_file} ]]; then
     ThresholdImage 3 ${_arg_input} ${tmpdir}/bgmask.mnc 1e-12 Inf 1 0
     ThresholdImage 3 ${_arg_input} ${tmpdir}/bgmask.mnc Otsu 4 ${tmpdir}/bgmask.mnc
     ThresholdImage 3 ${tmpdir}/bgmask.mnc ${tmpdir}/bgmask.mnc 2 Inf 1 0
-    mincresample -keep -near -like ${_arg_input} ${tmpdir}/bgmask.mnc ${tmpdir}/resample.mnc
-    mincresample $(mincbbox -mincresample ${tmpdir}/resample.mnc) ${tmpdir}/resample.mnc ${tmpdir}/label-crop.mnc
-    minccalc -expression "1" ${tmpdir}/label-crop.mnc ${tmpdir}/bounding.mnc
+    mincresample -quiet -keep -near -like ${_arg_input} ${tmpdir}/bgmask.mnc ${tmpdir}/resample.mnc
+    mincresample -quiet $(mincbbox -mincresample ${tmpdir}/resample.mnc) ${tmpdir}/resample.mnc ${tmpdir}/label-crop.mnc
+    minccalc -quiet -expression "1" ${tmpdir}/label-crop.mnc ${tmpdir}/bounding.mnc
 else
     # Use the provided crop file to generate a bounding box
-    mincresample -unsigned -int -keep -near -labels $(mincbbox -mincresample ${_arg_crop_file} | grep -v Reading) ${_arg_crop_file} ${tmpdir}/label-crop.mnc
-    minccalc -expression "1" ${tmpdir}/label-crop.mnc ${tmpdir}/bounding.mnc
-fi
-
-if [[ -n ${_arg_label_overlay} ]]; then
-  # Labelled layers
-  echo """
-  create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_t.rgb \
-      -width 1920 -height 360 -autocols ${_arg_transverse_slices} -autocol_planes t \
-      -bounding_volume ${tmpdir}/bounding.mnc \
-      -background orange \
-      -row ${_arg_input} color:${_arg_colour_map} \
-      volume_overlay:${_arg_label_overlay}:${_arg_label_overlay_opacity}
-
-  create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_s.rgb \
-      -width 1920 -height 360 -autocols ${_arg_sagittal_slices} -autocol_planes s \
-      -bounding_volume ${tmpdir}/bounding.mnc \
-      -background orange \
-      -row ${_arg_input} color:${_arg_colour_map} \
-      volume_overlay:${_arg_label_overlay}:${_arg_label_overlay_opacity}
-
-  create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_c.rgb \
-      -width 1920 -height 360 -autocols ${_arg_coronal_slices} -autocol_planes c \
-      -bounding_volume ${tmpdir}/bounding.mnc \
-      -background orange \
-      -row ${_arg_input} color:${_arg_colour_map} \
-      volume_overlay:${_arg_label_overlay}:${_arg_label_overlay_opacity}
-  """ | parallel
-fi
-
-if [[ -n ${_arg_second_row} ]]; then
-  echo """
-    # Trasverse
-    create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_t.rgb \
-        -width 1920 -height 360 -autocols ${_arg_transverse_slices} -autocol_planes t \
-        -bounding_volume ${tmpdir}/bounding.mnc \
-        -background orange \
-        -row ${_arg_second_row} color:${_arg_colour_map}
-
-    # Saggital
-    create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_s.rgb \
-        -width 1920 -height 360 -autocols ${_arg_sagittal_slices} -autocol_planes s \
-        -bounding_volume ${tmpdir}/bounding.mnc \
-        -background orange \
-        -row ${_arg_second_row} color:${_arg_colour_map}
-
-    # Coronal
-    create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_c.rgb \
-        -width 1920 -height 360 -autocols ${_arg_coronal_slices} -autocol_planes c \
-        -bounding_volume ${tmpdir}/bounding.mnc \
-        -background orange \
-        -row ${_arg_second_row} color:${_arg_colour_map} -background orange
-  """ | parallel
+    mincresample -quiet -unsigned -int -keep -near -labels $(mincbbox -mincresample ${_arg_crop_file} | grep -v Reading) ${_arg_crop_file} ${tmpdir}/label-crop.mnc
+    minccalc -quiet -expression "1" ${tmpdir}/label-crop.mnc ${tmpdir}/bounding.mnc
 fi
 
 # Generate the main QC image
 echo """
 # Trasverse
-create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_t2.rgb \
+create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/0_t.rgb \
     -width 1920 -height 360 -autocols ${_arg_transverse_slices} -autocol_planes t \
     -bounding_volume ${tmpdir}/bounding.mnc \
     -background orange \
-    -row ${_arg_input} color:${_arg_colour_map}
+    -row ${_arg_input} color:${_arg_colour_map} \
+    ${_arg_label_overlay[0]:+volume_overlay:${_arg_label_overlay[0]}:${_arg_label_overlay_opacity}}
 
 # Saggital
-create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_s2.rgb \
+create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/0_s.rgb \
     -width 1920 -height 360 -autocols ${_arg_sagittal_slices} -autocol_planes s \
     -bounding_volume ${tmpdir}/bounding.mnc \
     -background orange \
-    -row ${_arg_input} color:${_arg_colour_map}
+    -row ${_arg_input} color:${_arg_colour_map} \
+    ${_arg_label_overlay[0]:+volume_overlay:${_arg_label_overlay[0]}:${_arg_label_overlay_opacity}}
 
 # Coronal
-create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$(basename ${_arg_input} .mnc)_c2.rgb \
+create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/0_c.rgb \
     -width 1920 -height 360 -autocols ${_arg_coronal_slices} -autocol_planes c \
     -bounding_volume ${tmpdir}/bounding.mnc \
     -background orange \
-    -row ${_arg_input} color:${_arg_colour_map}
+    -row ${_arg_input} color:${_arg_colour_map} \
+    ${_arg_label_overlay[0]:+volume_overlay:${_arg_label_overlay[0]}:${_arg_label_overlay_opacity}}
 """ | parallel
 
+if [[ -n ${_arg_additional_row[*]} ]]; then
+  i=0
+  for item in "${_arg_additional_row[@]}"; do
+    echo """
+      # Trasverse
+      create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$((i + 1))_t.rgb \
+          -width 1920 -height 360 -autocols ${_arg_transverse_slices} -autocol_planes t \
+          -bounding_volume ${tmpdir}/bounding.mnc \
+          -background orange \
+          -row ${item} color:${_arg_colour_map} \
+          ${_arg_label_overlay[$((i + 1))]:+volume_overlay:${_arg_label_overlay[$((i + 1))]}:${_arg_label_overlay_opacity}}
+
+      # Saggital
+      create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$((i + 1))_s.rgb \
+          -width 1920 -height 360 -autocols ${_arg_sagittal_slices} -autocol_planes s \
+          -bounding_volume ${tmpdir}/bounding.mnc \
+          -background orange \
+          -row ${item} color:${_arg_colour_map} \
+          ${_arg_label_overlay[$((i + 1))]:+volume_overlay:${_arg_label_overlay[$((i + 1))]}:${_arg_label_overlay_opacity}}
+
+      # Coronal
+      create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$((i + 1))_c.rgb \
+          -width 1920 -height 360 -autocols ${_arg_coronal_slices} -autocol_planes c \
+          -bounding_volume ${tmpdir}/bounding.mnc \
+          -background orange \
+          -row ${item} color:${_arg_colour_map} \
+          ${_arg_label_overlay[$((i + 1))]:+volume_overlay:${_arg_label_overlay[$((i + 1))]}:${_arg_label_overlay_opacity}}
+    """ | parallel
+    ((i++)) || true
+  done
+fi
 
 # Magick to trim only the top and bottom of the images
 for file in ${tmpdir}/*rgb; do
@@ -447,7 +434,7 @@ convert \
   -gravity center \
   -strip \
   -interlace Plane -sampling-factor 4:2:0 -quality "85%" \
-  -append ${tmpdir}/*.mpc \
+  -append $(eval echo ${tmpdir}/{0..${#_arg_additional_row[@]}}_c.mpc ${tmpdir}/{0..${#_arg_additional_row[@]}}_s.mpc ${tmpdir}/{0..${#_arg_additional_row[@]}}_t.mpc) \
   ${_arg_output}
 
 rm -r ${tmpdir}
