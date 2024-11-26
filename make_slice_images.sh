@@ -17,6 +17,9 @@
 # ARG_OPTIONAL_SINGLE([coronal-slices],[],[Number of slices to generate for coronal direction],[10])
 # ARG_OPTIONAL_SINGLE([sagittal-slices],[],[Number of slices to generate for sagittal direction],[10])
 
+# ARG_OPTIONAL_SINGLE([row-width],[],[Target width for rows, due to how image generation works, not guaranteed to be satisifed],[1920])
+# ARG_OPTIONAL_SINGLE([row-height],[],[Target height for rows, due to how image generation works, not guaranteed to be satisifed],[360])
+
 # ARG_OPTIONAL_SINGLE([colour-map],[],[Colour map to use for images],[gray])
 
 # ARG_OPTIONAL_BOOLEAN([debug],[d],[Show all internal commands and logic for debug],[])
@@ -54,6 +57,8 @@ _arg_crop_file=
 _arg_transverse_slices="10"
 _arg_coronal_slices="10"
 _arg_sagittal_slices="10"
+_arg_row_width="1920"
+_arg_row_height="360"
 _arg_colour_map="gray"
 _arg_debug="off"
 
@@ -61,7 +66,7 @@ _arg_debug="off"
 print_help()
 {
   printf '%s\n' "Tool for generating 2D JPEG images slicing through 3D data for Quality Control, with overlay support"
-  printf 'Usage: %s [-h|--help] [--label-overlay <arg>] [--label-overlay-opacity <arg>] [--additional-row <arg>] [--crop-file <arg>] [--transverse-slices <arg>] [--coronal-slices <arg>] [--sagittal-slices <arg>] [--colour-map <arg>] [-d|--(no-)debug] <input> <output>\n' "$0"
+  printf 'Usage: %s [-h|--help] [--label-overlay <arg>] [--label-overlay-opacity <arg>] [--additional-row <arg>] [--crop-file <arg>] [--transverse-slices <arg>] [--coronal-slices <arg>] [--sagittal-slices <arg>] [--row-width <arg>] [--row-height <arg>] [--colour-map <arg>] [-d|--(no-)debug] <input> <output>\n' "$0"
   printf '\t%s\n' "<input>: Input file, MINC or NIFTI"
   printf '\t%s\n' "<output>: Output JPG Image"
   printf '\t%s\n' "-h, --help: Prints help"
@@ -72,6 +77,8 @@ print_help()
   printf '\t%s\n' "--transverse-slices: Number of slices to generate for transverse direction (default: '10')"
   printf '\t%s\n' "--coronal-slices: Number of slices to generate for coronal direction (default: '10')"
   printf '\t%s\n' "--sagittal-slices: Number of slices to generate for sagittal direction (default: '10')"
+  printf '\t%s\n' "--row-width: Target width for rows, due to how image generation works, not guaranteed to be satisifed (default: '1920')"
+  printf '\t%s\n' "--row-height: Target height for rows, due to how image generation works, not guaranteed to be satisifed (default: '360')"
   printf '\t%s\n' "--colour-map: Colour map to use for images (default: 'gray')"
   printf '\t%s\n' "-d, --debug, --no-debug: Show all internal commands and logic for debug (off by default)"
 }
@@ -147,6 +154,22 @@ parse_commandline()
         ;;
       --sagittal-slices=*)
         _arg_sagittal_slices="${_key##--sagittal-slices=}"
+        ;;
+      --row-width)
+        test $# -lt 2 && die "Missing value for the optional argument '$_key'." 1
+        _arg_row_width="$2"
+        shift
+        ;;
+      --row-width=*)
+        _arg_row_width="${_key##--row-width=}"
+        ;;
+      --row-height)
+        test $# -lt 2 && die "Missing value for the optional argument '$_key'." 1
+        _arg_row_height="$2"
+        shift
+        ;;
+      --row-height=*)
+        _arg_row_height="${_key##--row-height=}"
         ;;
       --colour-map)
         test $# -lt 2 && die "Missing value for the optional argument '$_key'." 1
@@ -362,7 +385,7 @@ fi
 echo """
 # Trasverse
 create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/0_t.rgb \
-    -width 1920 -height 360 -autocols ${_arg_transverse_slices} -autocol_planes t \
+    -width ${_arg_row_width} -height ${_arg_row_height} -autocols ${_arg_transverse_slices} -autocol_planes t \
     -bounding_volume ${tmpdir}/bounding.mnc \
     -background orange \
     -row ${_arg_input} color:${_arg_colour_map} \
@@ -370,7 +393,7 @@ create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/0_t.rgb \
 
 # Saggital
 create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/0_s.rgb \
-    -width 1920 -height 360 -autocols ${_arg_sagittal_slices} -autocol_planes s \
+    -width ${_arg_row_width} -height ${_arg_row_height} -autocols ${_arg_sagittal_slices} -autocol_planes s \
     -bounding_volume ${tmpdir}/bounding.mnc \
     -background orange \
     -row ${_arg_input} color:${_arg_colour_map} \
@@ -378,7 +401,7 @@ create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/0_s.rgb \
 
 # Coronal
 create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/0_c.rgb \
-    -width 1920 -height 360 -autocols ${_arg_coronal_slices} -autocol_planes c \
+    -width ${_arg_row_width} -height ${_arg_row_height} -autocols ${_arg_coronal_slices} -autocol_planes c \
     -bounding_volume ${tmpdir}/bounding.mnc \
     -background orange \
     -row ${_arg_input} color:${_arg_colour_map} \
@@ -391,7 +414,7 @@ if [[ -n ${_arg_additional_row[*]} ]]; then
     echo """
       # Trasverse
       create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$((i + 1))_t.rgb \
-          -width 1920 -height 360 -autocols ${_arg_transverse_slices} -autocol_planes t \
+          -width ${_arg_row_width} -height ${_arg_row_height} -autocols ${_arg_transverse_slices} -autocol_planes t \
           -bounding_volume ${tmpdir}/bounding.mnc \
           -background orange \
           -row ${item} color:${_arg_colour_map} \
@@ -399,7 +422,7 @@ if [[ -n ${_arg_additional_row[*]} ]]; then
 
       # Saggital
       create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$((i + 1))_s.rgb \
-          -width 1920 -height 360 -autocols ${_arg_sagittal_slices} -autocol_planes s \
+          -width ${_arg_row_width} -height ${_arg_row_height} -autocols ${_arg_sagittal_slices} -autocol_planes s \
           -bounding_volume ${tmpdir}/bounding.mnc \
           -background orange \
           -row ${item} color:${_arg_colour_map} \
@@ -407,7 +430,7 @@ if [[ -n ${_arg_additional_row[*]} ]]; then
 
       # Coronal
       create_verify_image -quiet -align_com -range_floor 0 ${tmpdir}/$((i + 1))_c.rgb \
-          -width 1920 -height 360 -autocols ${_arg_coronal_slices} -autocol_planes c \
+          -width ${_arg_row_width} -height ${_arg_row_height} -autocols ${_arg_coronal_slices} -autocol_planes c \
           -bounding_volume ${tmpdir}/bounding.mnc \
           -background orange \
           -row ${item} color:${_arg_colour_map} \
