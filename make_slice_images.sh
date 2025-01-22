@@ -460,6 +460,9 @@ convert \
   -append $(eval echo ${tmpdir}/{0..${#_arg_additional_row[@]}}_c.mpc ${tmpdir}/{0..${#_arg_additional_row[@]}}_s.mpc ${tmpdir}/{0..${#_arg_additional_row[@]}}_t.mpc) \
   ${_arg_output}
 
+
+if [[ ${_arg_debug} == "off" ]]; then
 rm -r ${tmpdir}
+fi
 
 # ] <-- needed because of Argbash
