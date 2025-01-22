@@ -373,11 +373,11 @@ if [[ -z ${_arg_crop_file} ]]; then
     ThresholdImage 3 ${_arg_input} ${tmpdir}/bgmask.mnc Otsu 4 ${tmpdir}/bgmask.mnc
     ThresholdImage 3 ${tmpdir}/bgmask.mnc ${tmpdir}/bgmask.mnc 2 Inf 1 0
     mincresample -quiet -keep -near -like ${_arg_input} ${tmpdir}/bgmask.mnc ${tmpdir}/resample.mnc
-    mincresample -quiet $(mincbbox -mincresample ${tmpdir}/resample.mnc) ${tmpdir}/resample.mnc ${tmpdir}/label-crop.mnc
+    mincreshape -quiet -unsigned -byte $(mincbbox -mincreshape ${tmpdir}/resample.mnc | grep -v Reading) ${tmpdir}/resample.mnc ${tmpdir}/label-crop.mnc
     minccalc -quiet -expression "1" ${tmpdir}/label-crop.mnc ${tmpdir}/bounding.mnc
 else
     # Use the provided crop file to generate a bounding box
-    mincresample -quiet -unsigned -int -keep -near -labels $(mincbbox -mincresample ${_arg_crop_file} | grep -v Reading) ${_arg_crop_file} ${tmpdir}/label-crop.mnc
+    mincreshape -quiet -unsigned -byte $(mincbbox -mincreshape ${_arg_crop_file} | grep -v Reading) ${_arg_crop_file} ${tmpdir}/label-crop.mnc
     minccalc -quiet -expression "1" ${tmpdir}/label-crop.mnc ${tmpdir}/bounding.mnc
 fi
 
