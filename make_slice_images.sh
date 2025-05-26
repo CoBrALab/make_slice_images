@@ -304,6 +304,16 @@ function debug() {
   true
 }
 
+function preflight_check() {
+  # Prefight check for required programs
+  for program in convert parallel nii2mnc ThresholdImage mincresample \
+                  mincreshape create_verify_image minccalc marching_cubes; do
+    if ! command -v ${program} &>/dev/null; then
+      failure "Required program ${program} not found!"
+    fi
+  done
+}
+
 # Add handler for failure to show where things went wrong
 failure_handler() {
   local lineno=$2
@@ -318,6 +328,8 @@ failure_handler() {
 }
 trap 'failure_handler "${BASH_LINENO[*]}" "$LINENO" "${FUNCNAME[*]:-script}" "$?" "$BASH_COMMAND"' ERR
 
+preflight_check
+
 tmpdir=$(mktemp -d)
 
 # Convert input NIFTI files if provided
@@ -330,8 +342,9 @@ fi
 i=0
 for item in "${_arg_label_overlay[@]}"; do
   if [[ ${item} = *nii || ${item} = *nii.gz ]]; then
-    nii2mnc -quiet ${item} ${tmpdir}/$(basename ${item}).mnc
-    _arg_label_overlay[${i}]=${tmpdir}/$(basename ${item}).mnc
+    prefix=$RANDOM
+    nii2mnc -quiet ${item} ${tmpdir}/${prefix}_$(basename ${item}).mnc
+    _arg_label_overlay[${i}]=${tmpdir}/${prefix}_$(basename ${item}).mnc
   fi
   ((i++)) || true
 done
@@ -339,8 +352,9 @@ done
 i=0
 for item in "${_arg_additional_row[@]}"; do
   if [[ ${item} = *nii || ${item} = *nii.gz ]]; then
-    nii2mnc -quiet ${item} ${tmpdir}/$(basename ${item}).mnc
-    _arg_additional_row[${i}]=${tmpdir}/$(basename ${item}).mnc
+    prefix=$RANDOM
+    nii2mnc -quiet ${item} ${tmpdir}/${prefix}_$(basename ${item}).mnc
+    _arg_additional_row[${i}]=${tmpdir}/${prefix}_$(basename ${item}).mnc
   fi
   ((i++)) || true
 done
@@ -362,7 +376,7 @@ fi
 
 # Generate the main QC image
 echo """
-# Trasverse
+# Transverse
 create_verify_image ${tmpdir}/0_t.rgb \
     -row ${_arg_input} color:${_arg_colour_map} \
     ${_arg_label_overlay[0]:+volume_overlay:${_arg_label_overlay[0]}:${_arg_label_overlay_opacity}} \
@@ -373,7 +387,7 @@ create_verify_image ${tmpdir}/0_t.rgb \
     -background orange \
     -quiet -range_floor 0
 
-# Saggital
+# Sagittal
 create_verify_image ${tmpdir}/0_s.rgb \
     -row ${_arg_input} color:${_arg_colour_map} \
     ${_arg_label_overlay[0]:+volume_overlay:${_arg_label_overlay[0]}:${_arg_label_overlay_opacity}} \
@@ -411,7 +425,7 @@ if [[ -n ${_arg_additional_row[*]} ]]; then
           -background orange \
           -quiet -range_floor 0
 
-      # Saggital
+      # Sagittal
       create_verify_image ${tmpdir}/$((i + 1))_s.rgb \
           -row ${item} color:${_arg_colour_map} \
           ${_arg_label_overlay[$((i + 1))]:+volume_overlay:${_arg_label_overlay[$((i + 1))]}:${_arg_label_overlay_opacity}} \
@@ -459,7 +473,7 @@ convert \
 
 
 if [[ ${_arg_debug} == "off" ]]; then
-rm -r ${tmpdir}
+  rm -r ${tmpdir}
 fi
 
 # ] <-- needed because of Argbash
