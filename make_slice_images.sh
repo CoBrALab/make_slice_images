@@ -340,7 +340,7 @@ if [[ ${_arg_input} = *nii || ${_arg_input} = *nii.gz ]]; then
 fi
 
 i=0
-for item in "${_arg_label_overlay[@]}"; do
+for item in ${_arg_label_overlay[@]+"${_arg_label_overlay[@]}"}; do
   if [[ ${item} = *nii || ${item} = *nii.gz ]]; then
     prefix=$RANDOM
     nii2mnc -quiet ${item} ${tmpdir}/${prefix}_$(basename ${item}).mnc
