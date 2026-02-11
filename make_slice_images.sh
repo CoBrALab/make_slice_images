@@ -383,46 +383,41 @@ if [[ -z ${_arg_crop_file} ]]; then
     mincresample -quiet -keep -near -like ${_arg_input} ${tmpdir}/bgmask.mnc ${tmpdir}/resample.mnc
     mincreshape -quiet -unsigned -byte $(mincbbox -mincreshape ${tmpdir}/resample.mnc | grep -v Reading) ${tmpdir}/resample.mnc ${tmpdir}/label-crop.mnc
     minccalc -quiet -expression "1" ${tmpdir}/label-crop.mnc ${tmpdir}/bounding.mnc
-    marching_cubes ${tmpdir}/bounding.mnc ${tmpdir}/bounding.obj 0.5
 else
     # Use the provided crop file to generate a bounding box
     mincreshape -quiet -unsigned -byte $(mincbbox -mincreshape ${_arg_crop_file} | grep -v Reading) ${_arg_crop_file} ${tmpdir}/label-crop.mnc
     minccalc -quiet -expression "1" ${tmpdir}/label-crop.mnc ${tmpdir}/bounding.mnc
-    marching_cubes ${tmpdir}/bounding.mnc ${tmpdir}/bounding.obj 0.5
 fi
 
 # Generate the main QC image
 echo """
 # Transverse
-create_verify_image ${tmpdir}/0_t.rgb \
+create_verify_image2 ${tmpdir}/0_t.rgb \
     -row ${_arg_input} color:${_arg_colour_map} \
     ${_arg_label_overlay[0]:+volume_overlay:${_arg_label_overlay[0]}:${_arg_label_overlay_opacity}} \
-    -width 3000 -height 3000 \
+    -width 3840  \
     -autocols ${_arg_transverse_slices} -autocol_planes t \
     -bounding_volume ${tmpdir}/bounding.mnc \
-    -bounding_object ${tmpdir}/bounding.obj \
     -background orange \
     -quiet -range_floor 0
 
 # Sagittal
-create_verify_image ${tmpdir}/0_s.rgb \
+create_verify_image2 ${tmpdir}/0_s.rgb \
     -row ${_arg_input} color:${_arg_colour_map} \
     ${_arg_label_overlay[0]:+volume_overlay:${_arg_label_overlay[0]}:${_arg_label_overlay_opacity}} \
-    -width 3000 -height 3000 \
+    -width 3840  \
     -autocols ${_arg_sagittal_slices} -autocol_planes s \
     -bounding_volume ${tmpdir}/bounding.mnc \
-    -bounding_object ${tmpdir}/bounding.obj \
     -background orange \
     -quiet -range_floor 0
 
 # Coronal
-create_verify_image ${tmpdir}/0_c.rgb \
+create_verify_image2 ${tmpdir}/0_c.rgb \
     -row ${_arg_input} color:${_arg_colour_map} \
     ${_arg_label_overlay[0]:+volume_overlay:${_arg_label_overlay[0]}:${_arg_label_overlay_opacity}} \
-    -width 3000 -height 3000 \
+    -width 3840  \
     -autocols ${_arg_coronal_slices} -autocol_planes c \
     -bounding_volume ${tmpdir}/bounding.mnc \
-    -bounding_object ${tmpdir}/bounding.obj \
     -background orange \
     -quiet -range_floor 0
 """ | parallel
@@ -432,35 +427,32 @@ if [[ -n ${_arg_additional_row[*]} ]]; then
   for item in "${_arg_additional_row[@]}"; do
     echo """
       # Trasverse
-      create_verify_image ${tmpdir}/$((i + 1))_t.rgb \
+      create_verify_image2 ${tmpdir}/$((i + 1))_t.rgb \
           -row ${item} color:${_arg_colour_map} \
           ${_arg_label_overlay[$((i + 1))]:+volume_overlay:${_arg_label_overlay[$((i + 1))]}:${_arg_label_overlay_opacity}} \
-          -width 3000 -height 3000 \
+          -width 3840  \
           -autocols ${_arg_transverse_slices} -autocol_planes t \
           -bounding_volume ${tmpdir}/bounding.mnc \
-          -bounding_object ${tmpdir}/bounding.obj \
           -background orange \
           -quiet -range_floor 0
 
       # Sagittal
-      create_verify_image ${tmpdir}/$((i + 1))_s.rgb \
+      create_verify_image2 ${tmpdir}/$((i + 1))_s.rgb \
           -row ${item} color:${_arg_colour_map} \
           ${_arg_label_overlay[$((i + 1))]:+volume_overlay:${_arg_label_overlay[$((i + 1))]}:${_arg_label_overlay_opacity}} \
-          -width 3000 -height 3000 \
+          -width 3840  \
           -autocols ${_arg_sagittal_slices} -autocol_planes s \
           -bounding_volume ${tmpdir}/bounding.mnc \
-          -bounding_object ${tmpdir}/bounding.obj \
           -background orange \
           -quiet -range_floor 0
 
       # Coronal
-      create_verify_image ${tmpdir}/$((i + 1))_c.rgb \
+      create_verify_image2 ${tmpdir}/$((i + 1))_c.rgb \
           -row ${item} color:${_arg_colour_map} \
           ${_arg_label_overlay[$((i + 1))]:+volume_overlay:${_arg_label_overlay[$((i + 1))]}:${_arg_label_overlay_opacity}} \
-          -width 3000 -height 3000 \
+          -width 3840  \
           -autocols ${_arg_coronal_slices} -autocol_planes c \
           -bounding_volume ${tmpdir}/bounding.mnc \
-          -bounding_object ${tmpdir}/bounding.obj \
           -background orange \
           -quiet -range_floor 0
     """ | parallel
