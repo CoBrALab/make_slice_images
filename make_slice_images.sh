@@ -351,6 +351,11 @@ if [[ ${_arg_input} = *nii || ${_arg_input} = *nii.gz ]]; then
   _arg_input=${tmpdir}/input.mnc
 fi
 
+if [[ ${_arg_crop_file} = *nii || ${_arg_crop_file} = *nii.gz ]]; then
+  nii2mnc -quiet ${_arg_crop_file} ${tmpdir}/cropfile.mnc
+  _arg_crop_file=${tmpdir}/cropfile.mnc
+fi
+
 i=0
 for item in ${_arg_label_overlay[@]+"${_arg_label_overlay[@]}"}; do
   if [[ ${item} = *nii || ${item} = *nii.gz ]]; then
